@@ -106,6 +106,12 @@ async def ask_question_stream(
         try:
             # EXTRACT QUESTION
             question = request.question
+            logger.info(f"received question: [{question}]")
+            
+            # CHECK IF QUESTION IS EMPTY
+            if not question.strip():
+                yield "error: [ERROR: Question cannot be empty]\n\n"
+                return
 
             # CHECK IF QUESTION IS A QUERY
             yield f"info: [Analyzing queires \"{question}\"]\n\n"
@@ -125,15 +131,12 @@ async def ask_question_stream(
             temperature=config.temperature
             )
             yield f"info: refined queries are [{refined_query}]\n\n"
+            logger.info(f"refined query: [{refined_query}]")
 
             # RETRIEVE CONTEXT (NOT STREAMING)
             yield f"info: [searching context...]\n\n"
             context = processor.retrieve_context_rerank(question=refined_query) # FURTHER FILTERING - RERANK
-            if not context:
-                yield "info: cannot find related document"
-                return
             prompt = prompt_builder.build_prompt_stream(refined_query, context)
-            
             # GENERATE STREAM RESPONSE
             yield f"info: [generating response...]\n\n"
             async for chunk in ollama.generate_stream(prompt):
